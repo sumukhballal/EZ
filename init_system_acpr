@@ -1,0 +1,66 @@
+//initialise system
+#include <avr/io.h>
+#include <avr/interrupt.h>
+
+
+#define USART_BAUDRATE 9600
+#define BAUD_PRESCALE (((F_CPU / (USART_BAUDRATE * 16UL))) - 1)
+#define F_CPU 1000000UL	
+
+
+void init_uart (void)
+{
+   cli();
+   UCSRB = (1 << RXEN) | (1 << TXEN);   // Turn on the transmission and reception circuitry
+   UCSRC = (1 << URSEL) | (1 << UCSZ0) | (1 << UCSZ1); // Use 8-bit character sizes
+
+   UBRRH = (BAUD_PRESCALE >> 8); // Load upper 8-bits of the baud rate value into the high byte of the UBRR register
+   UBRRL = BAUD_PRESCALE; // Load lower 8-bits of the baud rate value into the low byte of the UBRR register
+
+   UCSRB |= (1 << RXCIE); // Enable the USART Recieve Complete interrupt (USART_RXC)
+   sei(); // Enable the Global Interrupt Enable flag so that interrupts can be processed       
+}
+
+void init_interrupt()
+{
+	cli();
+	//DDRD = 1<<PD2 & 1<<PD3;		// Set PD2 as input (Using for interupt INT0)
+	PORTD = 1<<PD2 | 1<<PD3;		// Enable PD2 pull-up resistor
+	GICR = 1<<INT0|1<<INT1;					// Enable INT0
+	MCUCR = 1<<ISC01 | 0<<ISC00|1<<ISC11 | 0<<ISC10;	// Trigger INT0 on rising edge 
+	sei();				//Enable Global Interrupt
+ 
+}
+
+
+
+void init_pwm()
+{
+	TCCR0 |= (1<<WGM00)|(1<<WGM01)|(1<<COM01)|(1<<CS00);
+	DDRB = (1<<PB3);
+	
+}
+
+void init_ports()
+{
+	DDRA = 0XFF;
+	DDRB = 0XFF;
+	DDRC = 0XFF;
+}
+
+void init_gripper_pwm()
+{
+	PORTC |= (1<<PC5);	
+}
+
+
+void init_sys()
+{
+	cli();
+	init_ports();
+	init_interrupt();
+	init_uart();
+	init_pwm();
+	init_gripper_pwm();
+	sei();
+}
