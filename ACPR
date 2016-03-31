@@ -1,0 +1,287 @@
+/*
+ * ACPR_FINAL_V1.c
+ *
+ * Created: 16-03-2016 23:20:55
+ *  Author: pc
+ */ 
+
+//#include "motor_control.c"
+//#include "init_system.c"
+#include <avr/io.h>
+#include <avr/interrupt.h>
+#include <util/delay.h>
+
+//GLOBALS
+unsigned int real_x,real_y,count_x,count_y;
+int  process_x,process_y;  
+unsigned int  data[4], i= 0 , Data_complete = 0,grabage_var;
+
+
+//FUNCTION FOR UART RECEPTION
+
+void set_pwm(unsigned char pwm)
+{
+	OCR0  = pwm;
+}
+
+ISR(USART_RXC_vect)
+{
+   char ReceivedByte;
+   ReceivedByte = UDR; // Fetch the received byte value into the variable "ByteReceived"
+   data[i]  = ReceivedByte&0x0F;
+   data[i]  = 9 - data[i];
+   i = (i+1)%4;
+   if(i == 0)
+   {
+   		Data_complete = 1;
+		_delay_ms(100);
+   }
+   
+}
+
+
+
+void pick_position(unsigned char x, unsigned char y )
+{
+	count_x = 0;
+	count_y = 0;
+	real_x  = x;
+	real_y  = y;
+	stop_motor_z();
+	forward_motor_x();
+	while(count_x != real_x)
+	{
+		PORTB |= count_x & 0XF0;
+	}
+	_delay_ms(10);
+	//stop_motor_z();
+	_delay_ms(10);
+	left_motor_y(); 
+	while( count_y != real_y)
+	{
+		PORTB |= count_x & 0XF0;
+	}
+	
+	
+	//up_motor_z();
+	//_delay_ms(100);
+	//stop_motor_z();
+	//_delay_ms(1000);
+	//PORTB |= 0X00;
+	
+	set_pwm(60);
+	
+	_delay_ms(100);
+	
+	open_gripper();
+	_delay_ms(100);
+	stop_gripper();
+	
+	_delay_ms(500);
+	open_gripper();
+	_delay_ms(100);
+	stop_gripper();
+	
+	_delay_ms(500);
+	open_gripper();
+	_delay_ms(100);
+	stop_gripper();
+	
+	stop_motor_z();
+	_delay_ms(10);
+	down_motor_z();
+	_delay_ms(10);
+	stop_motor_z();
+	
+	_delay_ms(1000);	//delay for z
+	_delay_ms(1000);
+	_delay_ms(1000);
+	
+	close_gripper();
+	_delay_ms(100);
+	
+	set_pwm(200);
+	up_motor_z();
+	_delay_ms(1000);
+	_delay_ms(1000);
+	set_pwm(60);
+}
+
+void place_position(unsigned char x,unsigned char y)
+{
+	count_x = 0;
+	count_y = 0;
+	real_x = x;
+	real_y = y;
+	forward_motor_x();
+	left_motor_y();
+	while(count_x != real_x || count_y != real_y)
+	{
+		PORTB |= count_x & 0XF0;
+	}
+	
+	_delay_ms(10);
+	
+	stop_motor_z();
+	_delay_ms(10);		
+	down_motor_z();
+	_delay_ms(10);
+	stop_motor_z();
+	_delay_ms(1000);	//delay for z
+	_delay_ms(1000);
+	
+	
+	stop_gripper();
+	_delay_ms(100);
+	open_gripper();
+	_delay_ms(100);
+
+	stop_gripper();	
+	_delay_ms(500);
+	open_gripper();
+	_delay_ms(100);
+	stop_gripper();	
+	
+	
+	up_motor_z();
+	_delay_ms(500);
+	close_gripper();
+	_delay_ms(100);
+	stop_gripper();
+}
+
+
+void return_to_initial()
+{
+	count_x = 0;
+	count_y = 0;
+	backward_motor_x();
+	right_motor_y();
+	while(count_x != real_x || count_y != real_y)
+	{
+		PORTB |= count_x & 0XF0;
+	}
+	
+	_delay_ms(10);
+	
+}
+
+ 
+void init_gripper_up()
+{
+	stop_gripper();
+	_delay_ms(10);
+	set_pwm(150);
+	up_motor_z();
+	_delay_ms(1000);
+	set_pwm(60);
+	
+	//stop_motor_z();
+}
+ 
+ 
+int main(void)
+{
+	
+	init_sys();
+	init_gripper_up();
+	DDRA = 0XFF;
+	DDRC = 0XFF;
+    //FOR TESTING PURPOSE
+	/*while(1)
+	{
+		
+		forward_motor_x();
+		_delay_ms(1000);
+		stop_motor_x();
+		_delay_ms(1000);
+		backward_motor_x();
+		_delay_ms(1000);
+		stop_motor_x();
+		_delay_ms(1000);
+		
+		left_motor_y();
+		_delay_ms(1000);
+		stop_motor_y();
+		_delay_ms(1000);
+		right_motor_y();
+		_delay_ms(1000);
+		stop_motor_y();
+		_delay_ms(1000);
+		
+		down_motor_z();
+		_delay_ms(1000);
+		stop_motor_z();
+		_delay_ms(1000);
+		up_motor_z();
+		_delay_ms(1000);
+		stop_motor_z();
+		_delay_ms(1000);
+		
+		
+		open_gripper();
+		_delay_ms(100);
+		stop_gripper();
+		_delay_ms(500);
+		open_gripper();
+		_delay_ms(100);
+		stop_gripper();
+		_delay_ms(500);
+		open_gripper();
+		_delay_ms(100);
+		stop_gripper();
+	    _delay_ms(500);
+		
+		close_gripper();
+		_delay_ms(1000);
+		stop_gripper();
+		_delay_ms(100);		
+		
+		
+	}*/
+	
+	while(1)
+    {
+        if(Data_complete == 1)
+		{		
+			pick_position(data[0],data[1]);
+			_delay_ms(1000);
+			_delay_ms(1000);
+			while(1);
+			return_to_initial();
+			_delay_ms(1000);
+			place_position(data[2],data[3]);
+			_delay_ms(1000);
+			return_to_initial();
+			_delay_ms(1000);
+			Data_complete = 0;
+		}
+		else
+		{
+			PORTB = 0B01010101;
+		} 
+    }
+}
+
+
+
+ISR (INT0_vect)
+{
+	count_x++;
+	if(count_x == real_x )
+	{
+		stop_motor_x();
+		process_x = 1;
+	}	
+}	
+
+ISR (INT1_vect)
+{
+	count_y++;
+	if(count_y == real_y)
+	{
+		stop_motor_y();
+		process_y = 1;
+	}
+
+}
